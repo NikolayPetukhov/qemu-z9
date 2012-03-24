@@ -2,7 +2,7 @@
 #include "console.h"
 #include "framebuffer.h"
 
-#define DEBUG_MSM_IO
+//#define DEBUG_MSM_IO
 #include "msm.h"
 
 #define PL110_CR_EN   0x001
@@ -42,6 +42,7 @@ enum msm_mddi_version
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     DisplayState *ds;
 
     int version;
@@ -263,24 +264,7 @@ static void msm_mddi_update_pallette(msm_mddi_state *s, int n)
     }
 }
 
-static void msm_mddi_resize(msm_mddi_state *s, int width, int height)
-{
-    if (width != s->cols || height != s->rows) {
-        if (msm_mddi_enabled(s)) {
-            qemu_console_resize(s->ds, width, height);
-        }
-    }
-    s->cols = width;
-    s->rows = height;
-}
-
-/* Update interrupts.  */
-static void msm_mddi_update(msm_mddi_state *s)
-{
-  /* TODO: Implement interrupts.  */
-}
-
-static uint32_t msm_mddi_read(void *opaque, target_phys_addr_t offset)
+static uint64_t msm_mddi_read(void *opaque, target_phys_addr_t offset, unsigned size)
 {
     msm_mddi_state *s = (msm_mddi_state *)opaque;
 
@@ -332,7 +316,7 @@ static uint32_t msm_mddi_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void msm_mddi_write(void *opaque, target_phys_addr_t offset,
-                        uint32_t val)
+                        uint64_t val, unsigned size)
 {
     msm_mddi_state *s = (msm_mddi_state *)opaque;
     int n;
@@ -397,20 +381,14 @@ static void msm_mddi_write(void *opaque, target_phys_addr_t offset,
         break;
 #endif
     default:
-        LOG_MSM_IO("%s: 0x%x = 0x%x\n", __FUNCTION__, offset, val);
+        LOG_MSM_IO("%s: 0x%lx = 0x%llx\n", __FUNCTION__, offset, val);
     }
 }
 
-static CPUReadMemoryFunc * const msm_mddi_readfn[] = {
-   msm_mddi_read,
-   msm_mddi_read,
-   msm_mddi_read
-};
-
-static CPUWriteMemoryFunc * const msm_mddi_writefn[] = {
-   msm_mddi_write,
-   msm_mddi_write,
-   msm_mddi_write
+static const MemoryRegionOps msm_mddi_ops = {
+    .read = msm_mddi_read,
+    .write = msm_mddi_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void msm_mddi_mux_ctrl_set(void *opaque, int line, int level)
@@ -422,12 +400,10 @@ static void msm_mddi_mux_ctrl_set(void *opaque, int line, int level)
 static int msm_mddi_init(SysBusDevice *dev)
 {
     msm_mddi_state *s = FROM_SYSBUS(msm_mddi_state, dev);
-    int iomemtype;
 
-    iomemtype = cpu_register_io_memory(msm_mddi_readfn,
-                                       msm_mddi_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &msm_mddi_ops, s, "msm_mddi", 0x1000);
+    sysbus_init_mmio(dev, &s->iomem);
+
     sysbus_init_irq(dev, &s->irq);
     qdev_init_gpio_in(&s->busdev.qdev, msm_mddi_mux_ctrl_set, 1);
     s->ds = graphic_console_init(msm_mddi_update_display,

@@ -6,6 +6,7 @@
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     CharDriverState *chr;
     qemu_irq irq;
 } msm_uart_state;
@@ -92,14 +93,11 @@ typedef struct {
 #define UART_MISR        0x0010
 #define UART_ISR         0x0014
 
-static void msm_uart_update(msm_uart_state *s)
+static uint64_t msm_uart_read(void *opaque, target_phys_addr_t offset,
+                                        unsigned size)
 {
-}
-
-static uint32_t msm_uart_read(void *opaque, target_phys_addr_t offset)
-{
-    msm_uart_state *s = (msm_uart_state *)opaque;
-    uint32_t c;
+    //msm_uart_state *s = (msm_uart_state *)opaque;
+    //uint32_t c;
 
     switch (offset) {
 
@@ -113,12 +111,8 @@ static uint32_t msm_uart_read(void *opaque, target_phys_addr_t offset)
     }
 }
 
-static void msm_uart_set_read_trigger(msm_uart_state *s)
-{
-}
-
 static void msm_uart_write(void *opaque, target_phys_addr_t offset,
-                          uint32_t value)
+                        uint64_t value, unsigned size)
 {
     msm_uart_state *s = (msm_uart_state *)opaque;
     unsigned char ch;
@@ -138,7 +132,7 @@ static void msm_uart_write(void *opaque, target_phys_addr_t offset,
 
 static int msm_uart_can_receive(void *opaque)
 {
-    msm_uart_state *s = (msm_uart_state *)opaque;
+    //msm_uart_state *s = (msm_uart_state *)opaque;
 
     return 0;
 }
@@ -151,18 +145,6 @@ static void msm_uart_event(void *opaque, int event)
 {
 }
 
-static CPUReadMemoryFunc * const msm_uart_readfn[] = {
-   msm_uart_read,
-   msm_uart_read,
-   msm_uart_read
-};
-
-static CPUWriteMemoryFunc * const msm_uart_writefn[] = {
-   msm_uart_write,
-   msm_uart_write,
-   msm_uart_write
-};
-
 static const VMStateDescription vmstate_msm_uart = {
     .name = "msm_uart",
     .version_id = 1,
@@ -173,16 +155,19 @@ static const VMStateDescription vmstate_msm_uart = {
     }
 };
 
+static const MemoryRegionOps msm_uart_ops = {
+    .read = msm_uart_read,
+    .write = msm_uart_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
 static int msm_uart_init(SysBusDevice *dev)
 {
-    int iomemtype;
     msm_uart_state *s = FROM_SYSBUS(msm_uart_state, dev);
 
-    iomemtype = cpu_register_io_memory(msm_uart_readfn,
-                                       msm_uart_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
+    memory_region_init_io(&s->iomem, &msm_uart_ops, s, "msm_uart", 0x100);
+    sysbus_init_mmio(dev, &s->iomem);
 
-    sysbus_init_mmio(dev, 0x100, iomemtype);
     sysbus_init_irq(dev, &s->irq);
     s->chr = qdev_init_chardev(&dev->qdev);
 

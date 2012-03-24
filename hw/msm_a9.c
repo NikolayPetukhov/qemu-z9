@@ -82,7 +82,7 @@ static uint64_t msm_a9_read(void *opaque,
                                         target_phys_addr_t offset,
                                         unsigned size)
 {
-    msm_a9_state *s = opaque;
+    //msm_a9_state *s = opaque;
 
     //LOG_MSM_IO("%s: 0x%x\n", __FUNCTION__, offset);
 
@@ -108,7 +108,7 @@ static uint64_t msm_a9_read(void *opaque,
 static void msm_a9_write(void *opaque, target_phys_addr_t offset,
                                      uint64_t value, unsigned size)
 {
-    msm_a9_state *s = opaque;
+    //msm_a9_state *s = opaque;
 
     //LOG_MSM_IO("%s: 0x%04x\n", __FUNCTION__, offset);
 
@@ -135,8 +135,8 @@ static int msm_a9_init(SysBusDevice *dev)
 {
     msm_a9_state *s = FROM_SYSBUS(msm_a9_state, dev);
 
-    memory_region_init_io(&s->iomem, &msm_a9_ops, s, "msm-a9", 0x20);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    memory_region_init_io(&s->iomem, &msm_a9_ops, s, "msm_a9", 0x20);
+    sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
 }

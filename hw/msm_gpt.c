@@ -22,6 +22,7 @@
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     QEMUTimer *timer;
     qemu_irq irq;
 
@@ -91,7 +92,7 @@ static void msm_gpt_set_alarm(msm_gpt_state *s)
     }
 }
 
-static uint32_t msm_gpt_read(void *opaque, target_phys_addr_t offset)
+static uint64_t msm_gpt_read(void *opaque, target_phys_addr_t offset, unsigned size)
 {
     msm_gpt_state *s = (msm_gpt_state *)opaque;
 
@@ -108,8 +109,8 @@ static uint32_t msm_gpt_read(void *opaque, target_phys_addr_t offset)
     return 0;
 }
 
-static void msm_gpt_write(void * opaque, target_phys_addr_t offset,
-                        uint32_t value)
+static void msm_gpt_write(void *opaque, target_phys_addr_t offset,
+                        uint64_t value, unsigned size)
 {
     msm_gpt_state *s = (msm_gpt_state *)opaque;
 
@@ -143,30 +144,18 @@ static void msm_gpt_write(void * opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUWriteMemoryFunc * const  msm_gpt_writefn[] = {
-    msm_gpt_write,
-    msm_gpt_write,
-    msm_gpt_write
-};
-
-static CPUReadMemoryFunc * const  msm_gpt_readfn[] = {
-    msm_gpt_read,
-    msm_gpt_read,
-    msm_gpt_read
+static const MemoryRegionOps msm_gpt_ops = {
+    .read = msm_gpt_read,
+    .write = msm_gpt_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int msm_gpt_init(SysBusDevice *dev)
 {
-    int iomemtype;
     msm_gpt_state *s = FROM_SYSBUS(msm_gpt_state, dev);
 
-    iomemtype = cpu_register_io_memory(msm_gpt_readfn, msm_gpt_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    if (iomemtype == -1) {
-        hw_error("msm_gpt_init: Can't register I/O memory\n");
-    }
-
-    sysbus_init_mmio(dev, 0x40, iomemtype);
+    memory_region_init_io(&s->iomem, &msm_gpt_ops, s, "msm_gpt", 0x40);
+    sysbus_init_mmio(dev, &s->iomem);
 
     sysbus_init_irq(dev, &s->irq);
     LOG_MSM_IO("%s: irq %u\n", __FUNCTION__, s->irq);

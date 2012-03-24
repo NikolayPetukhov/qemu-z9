@@ -44,6 +44,7 @@
 typedef struct msm_vic_state
 {
   SysBusDevice busdev;
+  MemoryRegion iomem;
   uint64_t level;
   uint64_t mask;
   uint64_t irq_enabled;
@@ -91,7 +92,7 @@ static void msm_vic_set_irq(void *opaque, int irq, int level)
     msm_vic_update(s);
 }
 
-static uint32_t msm_vic_read(void *opaque, target_phys_addr_t offset)
+static uint64_t msm_vic_read(void *opaque, target_phys_addr_t offset, unsigned size)
 {
     msm_vic_state *s = (msm_vic_state *)opaque;
 
@@ -122,7 +123,7 @@ static uint32_t msm_vic_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void msm_vic_write(void *opaque, target_phys_addr_t offset,
-                          uint32_t value)
+                          uint64_t value, unsigned size)
 {
     msm_vic_state *s = (msm_vic_state *)opaque;
 
@@ -176,31 +177,22 @@ static void msm_vic_write(void *opaque, target_phys_addr_t offset,
     msm_vic_update(s);
 }
 
-static CPUReadMemoryFunc * const msm_vic_readfn[] = {
-   msm_vic_read,
-   msm_vic_read,
-   msm_vic_read
-};
-
-static CPUWriteMemoryFunc * const msm_vic_writefn[] = {
-   msm_vic_write,
-   msm_vic_write,
-   msm_vic_write
+static const MemoryRegionOps msm_vic_ops = {
+    .read = msm_vic_read,
+    .write = msm_vic_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int msm_vic_init(SysBusDevice *dev)
 {
     msm_vic_state *s = FROM_SYSBUS(msm_vic_state, dev);
-    int iomemtype;
 
     qdev_init_gpio_in(&dev->qdev, msm_vic_set_irq, 32);
     sysbus_init_irq(dev, &s->parent_irq);
     sysbus_init_irq(dev, &s->parent_fiq);
 
-    iomemtype = cpu_register_io_memory(msm_vic_readfn,
-                                       msm_vic_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &msm_vic_ops, s, "msm_vic", 0x1000);
+    sysbus_init_mmio(dev, &s->iomem);
     
     return 0;
 }
