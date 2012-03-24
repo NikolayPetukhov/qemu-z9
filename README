@@ -1,3 +1,14 @@
-Read the documentation in qemu-doc.html.
+how to compile:
 
-Fabrice Bellard.
+./configure --target-list=arm-softmmu
+make
+
+How to run lk bootloader:
+
+./arm-softmmu/qemu-system-arm -option-rom appsboot.mbn -serial stdio
+
+
+How to run linux kernel:
+
+./arm-softmmu/qemu-system-arm -kernel zImage -serial stdio
+
