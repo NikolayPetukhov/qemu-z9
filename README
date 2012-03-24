@@ -5,10 +5,10 @@ make
 
 How to run lk bootloader:
 
-./arm-softmmu/qemu-system-arm -option-rom appsboot.mbn -serial stdio
+./arm-softmmu/qemu-system-arm -M ztev9 -option-rom appsboot.mbn -serial stdio
 
 
 How to run linux kernel:
 
-./arm-softmmu/qemu-system-arm -kernel zImage -serial stdio
+./arm-softmmu/qemu-system-arm -M ztev9 -kernel zImage -serial stdio
 
